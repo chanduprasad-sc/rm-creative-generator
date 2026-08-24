@@ -34,22 +34,26 @@ GRADIENT_PALETTES = {
 }
 REGULAR_FONT_CANDIDATES = (
     Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
+    Path("/usr/share/fonts/opentype/urw-base35/NimbusSans-Regular.otf"),
     Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
     Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf"),
 )
 BOLD_FONT_CANDIDATES = (
     Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
+    Path("/usr/share/fonts/opentype/urw-base35/NimbusSans-Bold.otf"),
     Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
     Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"),
 )
 DISPLAY_FONT_CANDIDATES = (
     Path("/System/Library/Fonts/Supplemental/Impact.ttf"),
     Path("/System/Library/Fonts/Supplemental/Arial Black.ttf"),
+    Path("/usr/share/fonts/opentype/urw-base35/NimbusSansNarrow-Bold.otf"),
     *BOLD_FONT_CANDIDATES,
 )
 RUN_FONT_CANDIDATES = (
     Path("/System/Library/Fonts/Supplemental/Arial Bold Italic.ttf"),
     Path("/System/Library/Fonts/Supplemental/Arial Black.ttf"),
+    Path("/usr/share/fonts/opentype/urw-base35/NimbusSansNarrow-BoldOblique.otf"),
     *BOLD_FONT_CANDIDATES,
 )
 METRIC_FONT_CANDIDATES = (
@@ -208,6 +212,39 @@ def draw_fitted(draw: ImageDraw.ImageDraw, text: str, spec: dict, default_color:
     )
 
 
+def draw_rm_name(draw: ImageDraw.ImageDraw, name: str, spec: dict) -> None:
+    """Keep short names large and wrap long names over no more than two strong lines."""
+    words = name.upper().split()
+    if len(words) < 2:
+        draw_fitted(draw, name.upper(), spec)
+        return
+
+    start_size = int(spec["font_size"])
+    max_width = int(spec["max_width"])
+    full_font = resolve_font(start_size, name, spec.get("font", "display"))
+    full_box = draw.textbbox((0, 0), name.upper(), font=full_font, stroke_width=int(spec.get("stroke", 1)))
+    if full_box[2] - full_box[0] <= max_width:
+        draw_fitted(draw, name.upper(), spec)
+        return
+
+    candidates: list[tuple[int, str, str]] = []
+    for index in range(1, len(words)):
+        first, second = " ".join(words[:index]), " ".join(words[index:])
+        widths = []
+        for line in (first, second):
+            box = draw.textbbox((0, 0), line, font=full_font, stroke_width=int(spec.get("stroke", 1)))
+            widths.append(box[2] - box[0])
+        candidates.append((max(widths), first, second))
+    _, first, second = min(candidates, key=lambda item: item[0])
+    line_gap = max(42, round(start_size * 0.82))
+    first_spec = dict(spec)
+    second_spec = dict(spec)
+    first_spec["xy"] = [int(spec["xy"][0]), int(spec["xy"][1]) - line_gap // 2]
+    second_spec["xy"] = [int(spec["xy"][0]), int(spec["xy"][1]) + line_gap // 2]
+    draw_fitted(draw, first, first_spec)
+    draw_fitted(draw, second, second_spec)
+
+
 def clear_metadata_area(canvas: Image.Image, spec: dict) -> None:
     x1, y1, x2, y2 = spec["clear_box"]
     width, height = x2 - x1, y2 - y1
@@ -325,8 +362,26 @@ def remove_portrait_background(source: Image.Image) -> Image.Image:
     except (ImportError, RuntimeError) as exc:
         raise RuntimeError("automatic background removal requires the rembg package") from exc
     session = new_session("u2net_human_seg")
-    result = remove(source, session=session)
-    return result.convert("RGBA")
+    try:
+        result = remove(
+            source,
+            session=session,
+            alpha_matting=True,
+            alpha_matting_foreground_threshold=235,
+            alpha_matting_background_threshold=12,
+            alpha_matting_erode_size=4,
+            post_process_mask=True,
+            decontaminate=True,
+        )
+    except Exception:
+        # A basic mask is preferable to failing the entire creative if alpha matting
+        # cannot solve an unusually small or low-contrast portrait.
+        result = remove(source, session=session, post_process_mask=True)
+    cutout = result.convert("RGBA")
+    alpha = cutout.getchannel("A")
+    alpha = alpha.filter(ImageFilter.MedianFilter(3)).filter(ImageFilter.GaussianBlur(0.45))
+    cutout.putalpha(alpha)
+    return cutout
 
 
 def face_focused_crop(source: Image.Image, target_ratio: float) -> Image.Image:
@@ -342,10 +397,10 @@ def face_focused_crop(source: Image.Image, target_ratio: float) -> Image.Image:
     if len(faces) == 0:
         return source
     face_x, face_y, face_w, face_h = max(faces, key=lambda face: int(face[2]) * int(face[3]))
-    crop_width = min(source.width, round(face_w * 3.15))
+    crop_width = min(source.width, round(face_w * 3.55))
     crop_height = min(source.height, round(crop_width / target_ratio))
     center_x = face_x + face_w / 2
-    top = round(face_y - face_h * 0.62)
+    top = round(face_y - face_h * 0.78)
     left = round(center_x - crop_width / 2)
     left = max(0, min(left, source.width - crop_width))
     top = max(0, min(top, source.height - crop_height))
@@ -435,7 +490,7 @@ def main() -> int:
     cleared_metrics = clear_absent_metric_labels(canvas, supplied, layout)
 
     draw = ImageDraw.Draw(canvas)
-    draw_fitted(draw, rm_name.upper(), layout["name"])
+    draw_rm_name(draw, rm_name, layout["name"])
     rendered: list[str] = draw_metadata(draw, supplied, layout["metadata"])
     unsupported: list[str] = []
     for key in ("total_runs", "total_fees", "reward_points"):
