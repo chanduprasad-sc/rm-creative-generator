@@ -68,6 +68,18 @@ def clean_value(value: Any) -> str | None:
     return cleaned or None
 
 
+def token_rates(model: str) -> tuple[float, float] | None:
+    """Return standard Claude API input/output USD rates per million tokens."""
+    normalized = model.lower()
+    if "sonnet-5" in normalized:
+        return 2.0, 10.0
+    if "sonnet" in normalized:
+        return 3.0, 15.0
+    if "haiku-4-5" in normalized:
+        return 1.0, 5.0
+    return None
+
+
 def extract_with_claude(details_text: str) -> tuple[dict[str, Any], dict[str, int]]:
     api_key = secret("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "").strip()
     if not api_key:
@@ -77,7 +89,6 @@ def extract_with_claude(details_text: str) -> tuple[dict[str, Any], dict[str, in
     payload = {
         "model": model,
         "max_tokens": 500,
-        "temperature": 0,
         "system": (
             "You extract fields for an Indian RM performance poster. Never infer or invent missing "
             "values. Interpret RM as relationship manager, BM as branch manager, CH as cluster head, "
@@ -209,6 +220,7 @@ def generate(photo_bytes: bytes, suffix: str, details_text: str) -> dict[str, An
             "image": output_path.read_bytes(),
             "details": details,
             "usage": usage,
+            "model": secret("CLAUDE_MODEL", "claude-haiku-4-5-20251001"),
             "slab": summary.get("slab"),
             "gradient": summary.get("gradient"),
         }
@@ -275,8 +287,11 @@ if result:
         st.json(result["details"])
         input_tokens = result["usage"]["input_tokens"]
         output_tokens = result["usage"]["output_tokens"]
-        estimated_cost = input_tokens / 1_000_000 + output_tokens * 5 / 1_000_000
+        model = result.get("model", "")
         st.write(f"Input tokens: {input_tokens:,}")
         st.write(f"Output tokens: {output_tokens:,}")
-        st.write(f"Estimated Claude cost: ${estimated_cost:.6f}")
-
+        st.write(f"Model: `{model}`")
+        rates = token_rates(model)
+        if rates:
+            estimated_cost = (input_tokens * rates[0] + output_tokens * rates[1]) / 1_000_000
+            st.write(f"Estimated Claude cost: ${estimated_cost:.6f}")
