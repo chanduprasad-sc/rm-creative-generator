@@ -1,0 +1,7 @@
+streamlit==1.55.0
+requests==2.34.2
+Pillow==12.2.0
+opencv-python-headless==4.13.0.92
+rembg==2.0.72
+onnxruntime==1.26.0
+
