@@ -408,27 +408,63 @@ def remove_portrait_background(source: Image.Image) -> Image.Image:
     return cutout
 
 
-def face_focused_crop(source: Image.Image, target_ratio: float) -> Image.Image:
+def detect_face_box(source: Image.Image) -> tuple[int, int, int, int] | None:
+    """Find the face before segmentation, without cropping away hair or shoulders."""
     try:
         import cv2
         import numpy as np
     except ImportError:
-        return source
-    rgb = np.asarray(source.convert("RGB"))
+        return None
+    preview = source.copy()
+    preview.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+    rgb = np.asarray(preview.convert("RGB"))
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
     detector = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
     faces = detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(48, 48))
     if len(faces) == 0:
-        return source
+        return None
     face_x, face_y, face_w, face_h = max(faces, key=lambda face: int(face[2]) * int(face[3]))
-    crop_width = min(source.width, round(face_w * 3.55))
-    crop_height = min(source.height, round(crop_width / target_ratio))
-    center_x = face_x + face_w / 2
-    top = round(face_y - face_h * 0.78)
-    left = round(center_x - crop_width / 2)
-    left = max(0, min(left, source.width - crop_width))
-    top = max(0, min(top, source.height - crop_height))
-    return source.crop((left, top, left + crop_width, top + crop_height))
+    sx, sy = source.width / preview.width, source.height / preview.height
+    return (round(face_x * sx), round(face_y * sy), round(face_w * sx), round(face_h * sy))
+
+
+def fit_portrait(
+    portrait: Image.Image,
+    frame_size: tuple[int, int],
+    face: tuple[int, int, int, int] | None,
+) -> tuple[Image.Image, tuple[int, int]]:
+    """Center the face, allowing wide shoulders to extend beyond the frame."""
+    width, height = frame_size
+    # Ignore faint segmentation residue when finding the visible subject bounds.
+    subject_box = portrait.getchannel("A").point(lambda value: 255 if value > 24 else 0).getbbox()
+    if subject_box is None:
+        raise ValueError("background removal could not detect a person in the RM image")
+    portrait = portrait.crop(subject_box)
+    if face is not None:
+        face_x, face_y, face_w, face_h = face
+        center_x = face_x + face_w / 2 - subject_box[0]
+        center_y = face_y + face_h / 2 - subject_box[1]
+        target_y = height * 0.44
+        scale = min(height * 0.44 / max(1, face_h), width * 0.62 / max(1, face_w))
+        # Keep the top of the visible hair inside the frame with some headroom.
+        if center_y > 0:
+            scale = min(scale, (target_y - height * 0.045) / center_y)
+        offset = (round(width / 2 - center_x * scale), round(target_y - center_y * scale))
+    else:
+        # For profiles or undetected faces, center the upper subject rather than
+        # an asymmetric body bounding box, and retain a little space above the head.
+        scale = min(width * 1.10 / portrait.width, height * 0.95 / portrait.height)
+        head_alpha = portrait.getchannel("A").crop((0, 0, portrait.width, max(1, round(portrait.height * 0.4))))
+        columns = head_alpha.resize((portrait.width, 1), Image.Resampling.BOX)
+        weights = list(columns.getdata())
+        total = sum(weights)
+        center_x = sum((x + 0.5) * weight for x, weight in enumerate(weights)) / total if total else portrait.width / 2
+        offset = (round(width / 2 - center_x * scale), round(height - portrait.height * scale))
+    portrait = portrait.resize(
+        (max(1, round(portrait.width * scale)), max(1, round(portrait.height * scale))),
+        Image.Resampling.LANCZOS,
+    )
+    return portrait, offset
 
 
 def place_portrait(
@@ -444,28 +480,17 @@ def place_portrait(
     width, height = x2 - x1, y2 - y1
     with Image.open(portrait_path) as source:
         portrait = ImageOps.exif_transpose(source).convert("RGBA")
-    portrait = face_focused_crop(portrait, width / height)
+    face = detect_face_box(portrait)
     portrait = remove_portrait_background(portrait)
-    subject_box = portrait.getchannel("A").getbbox()
-    if subject_box is None:
-        raise ValueError("background removal could not detect a person in the RM image")
-    portrait = portrait.crop(subject_box)
-    max_size = (round(width * 0.96), round(height * 0.98))
-    scale = min(max_size[0] / portrait.width, max_size[1] / portrait.height)
-    scale = min(scale, 2.1)
-    portrait = portrait.resize(
-        (max(1, round(portrait.width * scale)), max(1, round(portrait.height * scale))),
-        Image.Resampling.LANCZOS,
-    )
+    portrait, offset = fit_portrait(portrait, (width, height), face)
 
     fitted = (
         canvas.crop((x1, y1, x2, y2)).convert("RGBA")
         if background == "template"
         else make_gradient((width, height), GRADIENT_PALETTES[gradient_name]).convert("RGBA")
     )
-    offset = ((width - portrait.width) // 2, height - portrait.height)
     shadow_alpha = Image.new("L", (width, height), 0)
-    shadow_alpha.paste(portrait.getchannel("A"), (offset[0] + 5, max(0, offset[1] + 7)))
+    shadow_alpha.paste(portrait.getchannel("A"), (offset[0] + 5, offset[1] + 7))
     shadow_alpha = shadow_alpha.filter(ImageFilter.GaussianBlur(10))
     shadow = Image.new("RGBA", (width, height), (0, 0, 0, 105))
     fitted.alpha_composite(Image.composite(shadow, Image.new("RGBA", (width, height)), shadow_alpha))
