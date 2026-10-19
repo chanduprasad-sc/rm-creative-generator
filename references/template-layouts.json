@@ -1,163 +1,40 @@
 {
-  "100-499": {
-    "min_runs": 100,
-    "max_runs": 499,
-    "template": "100-499-runs.jpeg",
-    "photo_box": [151, 969, 739, 1566],
-    "photo_radius": 12,
-    "name": {"xy": [130, 1675], "max_width": 720, "font_size": 104, "font": "display", "color": "#FFFFFF", "anchor": "lm", "stroke": 1, "stroke_color": "#17120B", "shadow": [8, 10], "extrusion": 3},
-    "metadata": {
-      "clear_box": [0, 1770, 900, 2280],
-      "sample_width": 40,
-      "start": [130, 1870],
-      "max_width": 720,
-      "font_size": 50,
-      "line_height": 105,
-      "color": "#FFFFFF",
-      "order": ["bm", "ch", "sh", "rh", "branch"]
-    },
-    "optional_metric_clear": {
-      "total_fees": [[1170, 1780, 1990, 1965]]
-    },
+  "0–700": {
+    "min_runs": 0,
+    "max_runs": 700,
+    "reference_size": [1462, 1696],
+    "template": "hdfc-festive-0-700.png",
+    "photo_box": [159, 763, 632, 1236],
+    "photo_shape": "circle",
+    "photo_background": "template",
+    "clear_boxes": [[650, 872, 1280, 1145]],
+    "name": {"xy": [692, 915], "max_width": 590, "font_size": 60, "font": "display", "color": "#F5C92F", "anchor": "lm", "stroke": 0, "shadow": [2, 6], "shadow_color": "#241040", "max_lines": 2},
+    "metadata": {"start": [692, 1007], "bottom": 1168, "max_width": 595, "font_size": 32, "line_height": 50, "color": "#FFFFFF", "font": "bold", "uppercase": true, "order": ["ch", "rh", "branch", "bm", "sh", "zh"]},
+    "optional_metric_clear": {"total_fees": [[900, 1440, 1195, 1505]]},
     "values": {
-      "total_runs": {"xy": [1560, 1435], "max_width": 900, "font_size": 300, "font": "run", "color": "#F7C933", "stroke": 1, "stroke_color": "#3A2B08", "shadow": [15, 18], "shadow_color": "#2B210A", "extrusion": 10, "extrusion_color": "#6E4E09", "highlight_color": "#FFE77A"},
-      "total_fees": {"xy": [1560, 2070], "max_width": 900, "font_size": 145, "font": "metric", "color": "#FFFFFF", "stroke": 2, "stroke_color": "#17120B", "shadow": [9, 11], "extrusion": 4},
-      "reward_points": {"xy": [1560, 2280], "max_width": 900, "font_size": 62, "font": "display", "color": "#FFFFFF", "stroke": 1, "stroke_color": "#17120B", "shadow": [7, 9], "extrusion": 3, "prefix": "REWARD POINTS: "}
+      "total_runs": {"xy": [410, 1383], "max_width": 480, "font_size": 88, "font": "display", "color": "#F5C92F", "stroke": 0},
+      "total_fees": {"xy": [1030, 1383], "max_width": 510, "font_size": 88, "font": "display", "color": "#F5C92F", "stroke": 0}
     }
   },
-  "500-599": {
-    "min_runs": 500,
-    "max_runs": 599,
-    "template": "500-599-runs.jpeg",
-    "photo_box": [94, 584, 460, 951],
-    "photo_radius": 8,
-    "name": {"xy": [90, 1070], "max_width": 470, "font_size": 70, "font": "display", "color": "#FFFFFF", "anchor": "lm", "stroke": 1, "stroke_color": "#17120B", "shadow": [5, 7], "extrusion": 2},
-    "metadata": {
-      "clear_box": [0, 1120, 600, 1460],
-      "sample_width": 36,
-      "start": [90, 1190],
-      "max_width": 475,
-      "font_size": 30,
-      "line_height": 58,
-      "color": "#FFFFFF",
-      "order": ["bm", "ch", "sh", "rh", "branch"]
-    },
-    "optional_metric_clear": {
-      "total_fees": [[700, 975, 1215, 1080]],
-      "reward_points": [[655, 1190, 1245, 1375]]
-    },
-    "values": {
-      "total_runs": {"xy": [956, 810], "max_width": 600, "font_size": 194, "font": "run", "color": "#F7C933", "stroke": 1, "stroke_color": "#3A2B08", "shadow": [10, 13], "shadow_color": "#2B210A", "extrusion": 7, "extrusion_color": "#6E4E09", "highlight_color": "#FFE77A"},
-      "total_fees": {"xy": [956, 1120], "max_width": 600, "font_size": 98, "font": "metric", "color": "#FFFFFF", "stroke": 2, "stroke_color": "#17120B", "shadow": [6, 8], "extrusion": 3},
-      "reward_points": {"xy": [956, 1415], "max_width": 600, "font_size": 96, "font": "display", "color": "#FFFFFF", "stroke": 1, "stroke_color": "#17120B", "shadow": [6, 8], "extrusion": 3}
-    }
-  },
-  "600-799": {
-    "min_runs": 600,
-    "max_runs": 799,
-    "template": "600-799-runs.jpeg",
-    "photo_box": [92, 591, 452, 951],
-    "photo_radius": 8,
-    "name": {"xy": [88, 1060], "max_width": 470, "font_size": 70, "font": "display", "color": "#FFFFFF", "anchor": "lm", "stroke": 1, "stroke_color": "#17120B", "shadow": [5, 7], "extrusion": 2},
-    "metadata": {
-      "clear_box": [0, 1095, 560, 1535],
-      "sample_width": 34,
-      "start": [88, 1160],
-      "max_width": 450,
-      "font_size": 30,
-      "line_height": 60,
-      "color": "#FFFFFF",
-      "order": ["branch", "bm", "ch", "sh", "rh"]
-    },
-    "optional_metric_clear": {
-      "total_fees": [[670, 975, 1165, 1080]],
-      "reward_points": [[640, 1190, 1195, 1370]]
-    },
-    "values": {
-      "total_runs": {"xy": [917, 810], "max_width": 590, "font_size": 192, "font": "run", "color": "#F7C933", "stroke": 1, "stroke_color": "#3A2B08", "shadow": [10, 13], "shadow_color": "#2B210A", "extrusion": 7, "extrusion_color": "#6E4E09", "highlight_color": "#FFE77A"},
-      "total_fees": {"xy": [917, 1120], "max_width": 590, "font_size": 96, "font": "metric", "color": "#FFFFFF", "stroke": 2, "stroke_color": "#17120B", "shadow": [6, 8], "extrusion": 3},
-      "reward_points": {"xy": [917, 1410], "max_width": 590, "font_size": 94, "font": "display", "color": "#FFFFFF", "stroke": 1, "stroke_color": "#17120B", "shadow": [6, 8], "extrusion": 3}
-    }
-  },
-  "800-899": {
-    "min_runs": 800,
-    "max_runs": 899,
-    "template": "800-899-runs.jpeg",
-    "photo_box": [94, 598, 459, 970],
-    "photo_radius": 8,
-    "name": {"xy": [90, 1070], "max_width": 470, "font_size": 70, "font": "display", "color": "#FFFFFF", "anchor": "lm", "stroke": 1, "stroke_color": "#17120B", "shadow": [5, 7], "extrusion": 2},
-    "metadata": {
-      "clear_box": [0, 1100, 575, 1540],
-      "sample_width": 34,
-      "start": [90, 1170],
-      "max_width": 465,
-      "font_size": 30,
-      "line_height": 60,
-      "color": "#FFFFFF",
-      "order": ["bm", "rh", "branch", "ch", "sh"]
-    },
-    "optional_metric_clear": {
-      "total_fees": [[700, 975, 1215, 1080]],
-      "reward_points": [[655, 1190, 1245, 1375]]
-    },
-    "values": {
-      "total_runs": {"xy": [950, 815], "max_width": 600, "font_size": 192, "font": "run", "color": "#D7E300", "stroke": 1, "stroke_color": "#344000", "shadow": [10, 13], "shadow_color": "#1D2800", "extrusion": 7, "extrusion_color": "#596600", "highlight_color": "#F3FF55"},
-      "total_fees": {"xy": [950, 1120], "max_width": 600, "font_size": 96, "font": "metric", "color": "#FFFFFF", "stroke": 2, "stroke_color": "#17120B", "shadow": [6, 8], "extrusion": 3},
-      "reward_points": {"xy": [950, 1410], "max_width": 600, "font_size": 94, "font": "display", "color": "#FFFFFF", "stroke": 1, "stroke_color": "#17120B", "shadow": [6, 8], "extrusion": 3}
-    }
-  },
-  "900-1999": {
-    "min_runs": 900,
-    "max_runs": 1999,
-    "template": "900-1999-runs.jpeg",
-    "photo_box": [94, 599, 459, 968],
-    "photo_radius": 8,
-    "name": {"xy": [90, 1060], "max_width": 470, "font_size": 70, "font": "display", "color": "#4B1765", "anchor": "lm", "stroke": 1, "stroke_color": "#D29BE6", "shadow": [5, 7], "shadow_color": "#2B0C3B", "extrusion": 2},
-    "metadata": {
-      "clear_box": [0, 1095, 580, 1460],
-      "sample_width": 34,
-      "start": [90, 1160],
-      "max_width": 470,
-      "font_size": 30,
-      "line_height": 60,
-      "color": "#3E1C5B",
-      "order": ["branch", "bm", "ch", "sh", "rh"]
-    },
-    "optional_metric_clear": {
-      "total_fees": [[700, 975, 1215, 1080]],
-      "reward_points": [[655, 1190, 1245, 1375]]
-    },
-    "values": {
-      "total_runs": {"xy": [950, 815], "max_width": 600, "font_size": 192, "font": "run", "color": "#8B17B3", "stroke": 1, "stroke_color": "#4A075F", "shadow": [10, 13], "shadow_color": "#32103D", "extrusion": 7, "extrusion_color": "#5B0B72", "highlight_color": "#C957EA"},
-      "total_fees": {"xy": [950, 1120], "max_width": 600, "font_size": 96, "font": "metric", "color": "#FFFFFF", "stroke": 2, "stroke_color": "#3D164A", "shadow": [6, 8], "shadow_color": "#2B0C35", "extrusion": 3},
-      "reward_points": {"xy": [950, 1410], "max_width": 600, "font_size": 94, "font": "display", "color": "#FFFFFF", "stroke": 1, "stroke_color": "#3D164A", "shadow": [6, 8], "shadow_color": "#2B0C35", "extrusion": 3}
-    }
-  },
-  "2000+": {
-    "min_runs": 2000,
+  "701+": {
+    "min_runs": 701,
     "max_runs": null,
-    "template": "2000-plus-runs.jpeg",
-    "photo_box": [94, 600, 459, 969],
-    "photo_radius": 8,
-    "name": {"xy": [90, 1070], "max_width": 470, "font_size": 70, "font": "display", "color": "#FFFFFF", "anchor": "lm", "stroke": 1, "stroke_color": "#17120B", "shadow": [5, 7], "extrusion": 2},
-    "metadata": {
-      "clear_box": [0, 1100, 580, 1470],
-      "sample_width": 34,
-      "start": [90, 1170],
-      "max_width": 470,
-      "font_size": 30,
-      "line_height": 60,
-      "color": "#FFFFFF",
-      "order": ["branch", "bm", "ch", "sh", "rh"]
-    },
+    "reference_size": [1462, 1696],
+    "template": "hdfc-festive-above-700.png",
+    "photo_box": [106, 640, 591, 1216],
+    "photo_radius": 0,
+    "photo_background": "template",
+    "clear_boxes": [[620, 665, 1320, 1045]],
+    "name": {"xy": [654, 758], "max_width": 650, "font_size": 84, "font": "display", "color": "#F5C532", "anchor": "lm", "stroke": 0, "shadow": [3, 9], "shadow_color": "#5B2D0C", "max_lines": 2},
+    "metadata": {"start": [655, 889], "bottom": 1032, "max_width": 655, "font_size": 32, "line_height": 61, "color": "#FFFFFF", "font": "bold", "uppercase": true, "pair_last": ["sh", "rh"], "order": ["branch", "bm", "ch", "zh", "sh", "rh"]},
     "optional_metric_clear": {
-      "total_fees": [[700, 975, 1215, 1080]],
-      "reward_points": [[655, 1190, 1245, 1375]]
+      "total_fees": [[300, 1440, 580, 1505]],
+      "reward_points": [[860, 1440, 1210, 1505]]
     },
     "values": {
-      "total_runs": {"xy": [950, 815], "max_width": 600, "font_size": 192, "font": "run", "color": "#F7C933", "stroke": 1, "stroke_color": "#3A2B08", "shadow": [10, 13], "shadow_color": "#2B210A", "extrusion": 7, "extrusion_color": "#6E4E09", "highlight_color": "#FFE77A"},
-      "total_fees": {"xy": [950, 1120], "max_width": 600, "font_size": 96, "font": "metric", "color": "#FFFFFF", "stroke": 2, "stroke_color": "#17120B", "shadow": [6, 8], "extrusion": 3},
-      "reward_points": {"xy": [950, 1410], "max_width": 600, "font_size": 94, "font": "display", "color": "#FFFFFF", "stroke": 1, "stroke_color": "#17120B", "shadow": [6, 8], "extrusion": 3}
+      "total_runs": {"xy": [1080, 1126], "max_width": 285, "font_size": 88, "font": "display", "color": "#FFBD00", "stroke": 0, "shadow": [3, 7], "shadow_color": "#683509"},
+      "total_fees": {"xy": [435, 1387], "max_width": 510, "font_size": 86, "font": "bold", "color": "#D5EDC5", "stroke": 0},
+      "reward_points": {"xy": [1030, 1387], "max_width": 510, "font_size": 86, "font": "bold", "color": "#D5EDC5", "stroke": 0}
     }
   }
 }

@@ -134,8 +134,8 @@ def extract_with_claude(details_text: str) -> tuple[dict[str, Any], dict[str, in
         total_runs = int(str(data.get("total_runs", "")).replace(",", ""))
     except ValueError as exc:
         raise CreativeError("Could not find a valid runs value.") from exc
-    if total_runs < 100:
-        raise CreativeError("The current templates support 100 runs and above.")
+    if total_runs < 0:
+        raise CreativeError("Runs must be a non-negative whole number.")
 
     approved = {
         "rm_name": rm_name,
@@ -188,7 +188,7 @@ def render_creative(photo_path: Path, details: dict[str, Any], output_path: Path
             command.extend([flag, str(details[key])])
 
     environment = os.environ.copy()
-    environment.setdefault("NUMBA_CACHE_DIR", "/tmp/monsoon-rembg-numba")
+    environment.setdefault("NUMBA_CACHE_DIR", "/tmp/festive-rembg-numba")
     try:
         result = subprocess.run(
             command,
@@ -223,13 +223,15 @@ def generate(photo_bytes: bytes, suffix: str, details_text: str) -> dict[str, An
             "model": secret("CLAUDE_MODEL", "claude-haiku-4-5-20251001"),
             "slab": summary.get("slab"),
             "gradient": summary.get("gradient"),
+            "unsupported_fields": summary.get("unsupported_fields", []),
         }
 
 
-st.set_page_config(page_title="RM Creative Generator", page_icon="🏆", layout="centered")
+st.set_page_config(page_title="HDFC Festive Bonanza", page_icon="🏆", layout="centered")
 
-st.title("RM Creative Generator")
+st.title("HDFC — Festive Bonanza")
 st.caption("Upload an RM portrait and paste the performance details. Only supplied fields appear on the poster.")
+st.caption("Templates: 0–700 runs (purple) · Above 700 runs (brown).")
 
 with st.form("creative_form"):
     photo = st.file_uploader("RM photo", type=["jpg", "jpeg", "png", "webp"])
@@ -237,12 +239,12 @@ with st.form("creative_form"):
         "Creative details",
         height=190,
         placeholder=(
-            "RM: Moksha Shah\n"
-            "Runs: 800\n"
-            "Total fees: 4.24 Lakh\n"
-            "Reward points: 80,000\n"
-            "BM: Akash Janyani\n"
-            "CH: Krupa Shah\n"
+            "RM: Meenakshi Sharma\n"
+            "Runs: 1122\n"
+            "Total fees: ₹2.99 L\n"
+            "Reward points: 5,000\n"
+            "BM: Sunil Sadarvarte\n"
+            "SH: Krupa Shah\n"
             "RH: Amit Agarwal\n"
             "Branch: Thane 2"
         ),
@@ -278,11 +280,13 @@ if result:
     st.download_button(
         "Download PNG",
         data=result["image"],
-        file_name=f"rm-creative-{safe_name}-{result['details']['total_runs']}-runs.png",
+        file_name=f"hdfc-festive-bonanza-{safe_name}-{result['details']['total_runs']}-runs.png",
         mime="image/png",
         type="primary",
         use_container_width=True,
     )
+    if result.get("unsupported_fields"):
+        st.info("These supplied fields do not have a place in this template: " + ", ".join(result["unsupported_fields"]))
     with st.expander("Detected details and Claude usage"):
         st.json(result["details"])
         input_tokens = result["usage"]["input_tokens"]

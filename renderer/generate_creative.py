@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render a Monsoon Bonanza creative from a slab template."""
+"""Render an HDFC Festive Bonanza creative from the approved run template."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ except ImportError as exc:
 SKILL_DIR = Path(__file__).resolve().parent.parent
 LAYOUTS_PATH = SKILL_DIR / "references" / "template-layouts.json"
 ASSETS_DIR = SKILL_DIR / "assets"
-os.environ.setdefault("NUMBA_CACHE_DIR", "/tmp/monsoon-rembg-numba")
+os.environ.setdefault("NUMBA_CACHE_DIR", "/tmp/festive-rembg-numba")
 GRADIENT_PALETTES = {
     "royal-violet": ("#102A68", "#7B2CBF"),
     "teal-midnight": ("#0B6E75", "#081B3A"),
@@ -112,8 +112,8 @@ def runs_as_int(raw: str) -> int:
 
 
 def normalize_fee_value(raw: str) -> str:
-    """Expand a terminal numeric L abbreviation without altering other formatting."""
-    return re.sub(r"(?i)(?<=\d)\s*L$", " Lakh", raw.strip())
+    """Preserve the supplied fee amount and units without inventing formatting."""
+    return raw.strip()
 
 
 def select_layout(layouts: dict, runs: int) -> tuple[str, dict]:
@@ -121,7 +121,31 @@ def select_layout(layouts: dict, runs: int) -> tuple[str, dict]:
         upper = layout["max_runs"]
         if runs >= layout["min_runs"] and (upper is None or runs <= upper):
             return slab, layout
-    raise ValueError(f"no supplied template covers {runs} runs; the minimum supported value is 100")
+    raise ValueError(f"no supplied template covers {runs} runs")
+
+
+def scale_layout(layout: dict, size: tuple[int, int]) -> dict:
+    """Map reference design coordinates to the original full-resolution PNG."""
+    factor = size[0] / layout["reference_size"][0]
+    if abs(size[1] / layout["reference_size"][1] - factor) > 0.01:
+        raise ValueError("Template aspect ratio does not match the configured layout")
+    lengths = {"photo_radius", "font_size", "max_width", "line_height", "bottom", "extrusion", "stroke"}
+    vectors = {"xy", "start", "photo_box", "shadow"}
+
+    def scaled(value, key=""):
+        if key == "optional_metric_clear":
+            return {k: [[round(v * factor) for v in box] for box in boxes] for k, boxes in value.items()}
+        if isinstance(value, dict):
+            return {k: scaled(v, k) for k, v in value.items()}
+        if key in lengths and isinstance(value, (int, float)):
+            return round(value * factor)
+        if key in vectors:
+            return [round(v * factor) for v in value]
+        if key == "clear_boxes":
+            return [[round(v * factor) for v in box] for box in value]
+        return value
+
+    return scaled(layout)
 
 
 def resolve_font(size: int, text: str = "", family: str = "bold") -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
@@ -215,7 +239,7 @@ def draw_fitted(draw: ImageDraw.ImageDraw, text: str, spec: dict, default_color:
 def draw_rm_name(draw: ImageDraw.ImageDraw, name: str, spec: dict) -> None:
     """Keep short names large and wrap long names over no more than two strong lines."""
     words = name.upper().split()
-    if len(words) < 2:
+    if len(words) < 2 or spec.get("max_lines") == 1:
         draw_fitted(draw, name.upper(), spec)
         return
 
@@ -236,7 +260,7 @@ def draw_rm_name(draw: ImageDraw.ImageDraw, name: str, spec: dict) -> None:
             widths.append(box[2] - box[0])
         candidates.append((max(widths), first, second))
     _, first, second = min(candidates, key=lambda item: item[0])
-    line_gap = max(42, round(start_size * 0.82))
+    line_gap = max(42, round(start_size * 1.04))
     first_spec = dict(spec)
     second_spec = dict(spec)
     first_spec["xy"] = [int(spec["xy"][0]), int(spec["xy"][1]) - line_gap // 2]
@@ -299,31 +323,31 @@ def draw_metadata(draw: ImageDraw.ImageDraw, supplied: dict[str, str], spec: dic
     }
     rendered: list[str] = []
     x, y = spec["start"]
-    order = list(spec["order"])
-    if "zh" not in order:
-        insert_at = order.index("ch") + 1 if "ch" in order else len(order)
-        order.insert(insert_at, "zh")
-    order.extend(["ftd_runs", "ftd_subscription"])
-    active = [key for key in order if supplied.get(key)]
-    bottom_padding = max(36, round(int(spec["font_size"]) * 1.1))
-    available_height = max(1, int(spec["clear_box"][3]) - int(y) - bottom_padding)
+    active = [key for key in spec["order"] if supplied.get(key)]
+    paired = [key for key in spec.get("pair_last", []) if key in active]
+    rows = [[key] for key in active if key not in paired]
+    if paired:
+        rows.append(paired)
+    available_height = max(1, int(spec["bottom"]) - int(y))
     line_height = int(spec["line_height"])
-    if len(active) > 1:
-        line_height = min(line_height, available_height // (len(active) - 1))
-    font_size = min(int(spec["font_size"]), max(22, round(line_height * 0.58)))
-    for key in active:
-        value = supplied.get(key)
+    if len(rows) > 1:
+        line_height = min(line_height, available_height // (len(rows) - 1))
+    font_size = min(int(spec["font_size"]), max(18, round(line_height * 0.8)))
+    for row in rows:
+        text = " | ".join(f"{labels[key]}: {supplied[key]}" for key in row)
+        if spec.get("uppercase"):
+            text = text.upper()
         line_spec = {
             "xy": [x, y],
             "max_width": spec["max_width"],
             "font_size": font_size,
-            "font": "regular",
+            "font": spec.get("font", "regular"),
             "color": spec.get("color", "#FFFFFF"),
             "anchor": "lm",
             "stroke": 0,
         }
-        draw_fitted(draw, f"{labels[key]}: {value}", line_spec)
-        rendered.append(key)
+        draw_fitted(draw, text, line_spec)
+        rendered.extend(row)
         y += line_height
     return rendered
 
@@ -413,6 +437,8 @@ def place_portrait(
     box: list[int],
     radius: int,
     gradient_name: str,
+    shape: str = "rectangle",
+    background: str = "template",
 ) -> None:
     x1, y1, x2, y2 = box
     width, height = x2 - x1, y2 - y1
@@ -432,7 +458,11 @@ def place_portrait(
         Image.Resampling.LANCZOS,
     )
 
-    fitted = make_gradient((width, height), GRADIENT_PALETTES[gradient_name]).convert("RGBA")
+    fitted = (
+        canvas.crop((x1, y1, x2, y2)).convert("RGBA")
+        if background == "template"
+        else make_gradient((width, height), GRADIENT_PALETTES[gradient_name]).convert("RGBA")
+    )
     offset = ((width - portrait.width) // 2, height - portrait.height)
     shadow_alpha = Image.new("L", (width, height), 0)
     shadow_alpha.paste(portrait.getchannel("A"), (offset[0] + 5, max(0, offset[1] + 7)))
@@ -441,13 +471,17 @@ def place_portrait(
     fitted.alpha_composite(Image.composite(shadow, Image.new("RGBA", (width, height)), shadow_alpha))
     fitted.alpha_composite(portrait, offset)
     mask = Image.new("L", (width, height), 0)
-    ImageDraw.Draw(mask).rounded_rectangle((0, 0, width - 1, height - 1), radius=radius, fill=255)
+    mask_draw = ImageDraw.Draw(mask)
+    if shape == "circle":
+        mask_draw.ellipse((0, 0, width - 1, height - 1), fill=255)
+    else:
+        mask_draw.rounded_rectangle((0, 0, width - 1, height - 1), radius=radius, fill=255)
     canvas.paste(fitted.convert("RGB"), (x1, y1), mask)
 
 
 def automatic_output(directory: Path, name: str, runs: int) -> Path:
     safe_name = re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "rm"
-    return directory / f"monsoon-bonanza-{safe_name}-{runs}-runs.png"
+    return directory / f"hdfc-festive-bonanza-{safe_name}-{runs}-runs.png"
 
 
 def main() -> int:
@@ -463,6 +497,9 @@ def main() -> int:
     slab, layout = select_layout(layouts, runs)
     template_path = ASSETS_DIR / layout["template"]
     canvas = Image.open(template_path).convert("RGB")
+    layout = scale_layout(layout, canvas.size)
+    for box in layout.get("clear_boxes", []):
+        clear_flattened_region(canvas, box)
     gradient_name = args.gradient or secrets.choice(tuple(GRADIENT_PALETTES))
     place_portrait(
         canvas,
@@ -470,8 +507,9 @@ def main() -> int:
         layout["photo_box"],
         int(layout.get("photo_radius", 8)),
         gradient_name,
+        layout.get("photo_shape", "rectangle"),
+        layout.get("photo_background", "template"),
     )
-    clear_metadata_area(canvas, layout["metadata"])
 
     supplied = {
         "total_runs": args.total_runs.strip(),
@@ -492,7 +530,7 @@ def main() -> int:
     draw = ImageDraw.Draw(canvas)
     draw_rm_name(draw, rm_name, layout["name"])
     rendered: list[str] = draw_metadata(draw, supplied, layout["metadata"])
-    unsupported: list[str] = []
+    unsupported: list[str] = [key for key in ("ftd_runs", "ftd_subscription") if supplied.get(key)]
     for key in ("total_runs", "total_fees", "reward_points"):
         value = supplied.get(key)
         if not value:
@@ -517,7 +555,8 @@ def main() -> int:
         "output": str(output),
         "slab": slab,
         "template": str(template_path),
-        "gradient": gradient_name,
+        "gradient": gradient_name if layout.get("photo_background") != "template" else None,
+        "contest": "HDFC Festive Bonanza",
         "background_removed": True,
         "rendered_fields": rendered,
         "unsupported_fields": unsupported,
