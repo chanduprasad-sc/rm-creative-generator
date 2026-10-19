@@ -169,7 +169,7 @@ def extract_with_claude(details_text: str) -> tuple[dict[str, Any], dict[str, in
     }
 
 
-def render_creative(photo_path: Path, details: dict[str, Any], output_path: Path) -> dict[str, Any]:
+def render_creative(photo_path: Path, details: dict[str, Any], output_path: Path, framing: dict[str, float] | None = None) -> dict[str, Any]:
     command = [
         sys.executable,
         str(RENDERER),
@@ -197,6 +197,8 @@ def render_creative(photo_path: Path, details: dict[str, Any], output_path: Path
     for key, flag in flags.items():
         if details.get(key):
             command.extend([flag, str(details[key])])
+    for key, flag in {"zoom": "--portrait-zoom", "x": "--portrait-x", "y": "--portrait-y"}.items():
+        command.extend([flag, str((framing or {}).get(key, 1.0 if key == "zoom" else 0.0))])
 
     environment = os.environ.copy()
     environment.setdefault("NUMBA_CACHE_DIR", "/tmp/festive-rembg-numba")
@@ -219,14 +221,14 @@ def render_creative(photo_path: Path, details: dict[str, Any], output_path: Path
         return {"output": str(output_path)}
 
 
-def generate(photo_bytes: bytes, suffix: str, details_text: str) -> dict[str, Any]:
+def generate(photo_bytes: bytes, suffix: str, details_text: str, framing: dict[str, float] | None = None) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="rm-creative-") as temp_name:
         temp_dir = Path(temp_name)
         photo_path = temp_dir / f"portrait{suffix}"
         output_path = temp_dir / "creative.png"
         photo_path.write_bytes(photo_bytes)
         details, usage = extract_with_claude(details_text)
-        summary = render_creative(photo_path, details, output_path)
+        summary = render_creative(photo_path, details, output_path, framing)
         return {
             "image": output_path.read_bytes(),
             "details": details,
@@ -235,6 +237,8 @@ def generate(photo_bytes: bytes, suffix: str, details_text: str) -> dict[str, An
             "slab": summary.get("slab"),
             "gradient": summary.get("gradient"),
             "unsupported_fields": summary.get("unsupported_fields", []),
+            "source_photo": photo_bytes,
+            "source_suffix": suffix,
         }
 
 
@@ -243,6 +247,13 @@ st.set_page_config(page_title="HDFC Festive Bonanza", page_icon="🏆", layout="
 st.title("HDFC — Festive Bonanza")
 st.caption("Upload an RM portrait and paste the performance details. Only supplied fields appear on the poster.")
 st.caption("Templates: 0–700 runs (purple) · Above 700 runs (brown).")
+
+with st.expander("Adjust photo framing"):
+    st.caption("Use a closer head-and-shoulders crop. You can adjust an existing result without another Claude call.")
+    portrait_zoom = st.slider("Photo zoom", 0.7, 1.8, 1.0, 0.05)
+    portrait_x = st.slider("Move left / right", -30, 30, 0, 1)
+    portrait_y = st.slider("Move up / down", -30, 30, 0, 1)
+framing = {"zoom": portrait_zoom, "x": portrait_x / 100, "y": portrait_y / 100}
 
 with st.form("creative_form"):
     photo = st.file_uploader("RM photo", type=["jpg", "jpeg", "png", "webp"])
@@ -277,13 +288,26 @@ if submitted:
         else:
             try:
                 with st.spinner("Removing the background and generating the creative…"):
-                    st.session_state["result"] = generate(photo_bytes, suffix, details_text)
+                    st.session_state["result"] = generate(photo_bytes, suffix, details_text, framing)
             except CreativeError as exc:
                 st.error(str(exc))
             except Exception as exc:
                 st.error(f"Unexpected error: {exc}")
 
 result = st.session_state.get("result")
+if result and result.get("source_photo"):
+    if st.button("Apply photo framing — no extra AI cost"):
+        try:
+            with st.spinner("Updating photo framing…"), tempfile.TemporaryDirectory(prefix="rm-reframe-") as temp_name:
+                temp_dir = Path(temp_name)
+                photo_path = temp_dir / f"portrait{result['source_suffix']}"
+                photo_path.write_bytes(result["source_photo"])
+                output_path = temp_dir / "creative.png"
+                render_creative(photo_path, result["details"], output_path, framing)
+                result["image"] = output_path.read_bytes()
+                result["reframed"] = True
+        except CreativeError as exc:
+            st.error(str(exc))
 if result:
     st.success(f"Creative ready — runs slab: {result.get('slab') or 'selected'}")
     input_tokens = result["usage"]["input_tokens"]
@@ -309,6 +333,8 @@ if result:
             f"This generation · {model} · Conversion: $1 = ₹{usd_to_inr:.2f} (configured estimate, not a live rate). "
             "API cost only; excludes taxes, card conversion fees and hosting."
         )
+        if result.get("reframed"):
+            st.caption("Photo framing updated without another Claude call. The cost above is for the original details extraction.")
     else:
         st.info(f"Token usage is shown, but pricing has not been configured for {model}.")
     st.image(result["image"], use_container_width=True)

@@ -10,6 +10,10 @@ The purple layout includes a circular RM portrait, RM name, supplied team/branch
 
 Template PNGs are in `assets/hdfc-festive-0-700.png` and `assets/hdfc-festive-above-700.png`. Positions and styles are in `references/template-layouts.json`. The previous contest assets are unused.
 
+Portraits use a close head-and-shoulders crop. The face is centered horizontally at 46% of the circular frame height (44% for the larger rectangular layout), with headroom and overflowing shoulders clipped. When no face is detected, the renderer uses an enlarged upper-subject crop. The **Adjust photo framing** controls offer zoom and horizontal/vertical position. After generating once, **Apply photo framing — no extra AI cost** re-renders using the same extracted details without calling Claude again.
+
+The bundled, freely licensed Lilita One display font is used for names and headline numbers, and Lato Bold for team details, consistently on desktop and Streamlit. Both fonts and their OFL licenses must be uploaded from `assets/fonts/`. They approximate the designer reference; the original design's font file was not supplied. Purple posters show team details in BM, CH, SH, RH, ZH, Branch order, omitting absent fields. Numeric fees such as `100000` display as `1 LAKH` (the numerical value is unchanged).
+
 ## Deploy
 
 1. Create a private GitHub repository.

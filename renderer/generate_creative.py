@@ -10,6 +10,7 @@ import os
 import re
 import secrets
 import sys
+from decimal import Decimal
 from pathlib import Path
 
 try:
@@ -39,12 +40,14 @@ REGULAR_FONT_CANDIDATES = (
     Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf"),
 )
 BOLD_FONT_CANDIDATES = (
+    ASSETS_DIR / "fonts" / "Lato-Bold.ttf",
     Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
     Path("/usr/share/fonts/opentype/urw-base35/NimbusSans-Bold.otf"),
     Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
     Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"),
 )
 DISPLAY_FONT_CANDIDATES = (
+    ASSETS_DIR / "fonts" / "LilitaOne-Regular.ttf",
     Path("/System/Library/Fonts/Supplemental/Impact.ttf"),
     Path("/System/Library/Fonts/Supplemental/Arial Black.ttf"),
     Path("/usr/share/fonts/opentype/urw-base35/NimbusSansNarrow-Bold.otf"),
@@ -63,6 +66,7 @@ METRIC_FONT_CANDIDATES = (
     *BOLD_FONT_CANDIDATES,
 )
 UNICODE_FONT_CANDIDATES = (
+    ASSETS_DIR / "fonts" / "Lato-Bold.ttf",
     Path("/System/Library/Fonts/Supplemental/Devanagari Sangam MN.ttc"),
     Path("/System/Library/Fonts/Kohinoor.ttc"),
     Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"),
@@ -93,6 +97,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--reward-points")
     parser.add_argument("--ftd-runs")
     parser.add_argument("--ftd-subscription")
+    parser.add_argument("--portrait-zoom", type=float, default=1.0)
+    parser.add_argument("--portrait-x", type=float, default=0.0, help="Horizontal shift as a fraction of the photo frame")
+    parser.add_argument("--portrait-y", type=float, default=0.0, help="Vertical shift as a fraction of the photo frame")
     parser.add_argument(
         "--gradient",
         choices=sorted(GRADIENT_PALETTES),
@@ -112,8 +119,17 @@ def runs_as_int(raw: str) -> int:
 
 
 def normalize_fee_value(raw: str) -> str:
-    """Preserve the supplied fee amount and units without inventing formatting."""
-    return raw.strip()
+    """Use the designer's compact uppercase lakh format for numeric fees."""
+    value = raw.strip().upper()
+    numeric = re.fullmatch(r"(₹|RS\.?|INR)?\s*([\d,]+(?:\.\d+)?)", value)
+    if numeric:
+        amount = Decimal(numeric[2].replace(",", ""))
+        if amount >= 100_000:
+            lakhs = format(amount / Decimal(100_000), 'f')
+            if '.' in lakhs:
+                lakhs = lakhs.rstrip('0').rstrip('.')
+            return f"{'₹' if numeric[1] else ''}{lakhs} LAKH"
+    return re.sub(r"(?<=\d)\s*(?:L|LAC|LACS|LAKHS)$", " LAKH", value)
 
 
 def select_layout(layouts: dict, runs: int) -> tuple[str, dict]:
@@ -432,6 +448,11 @@ def fit_portrait(
     portrait: Image.Image,
     frame_size: tuple[int, int],
     face: tuple[int, int, int, int] | None,
+    zoom: float = 1.0,
+    shift_x: float = 0.0,
+    shift_y: float = 0.0,
+    face_fraction: float = 0.48,
+    face_position: float = 0.46,
 ) -> tuple[Image.Image, tuple[int, int]]:
     """Center the face, allowing wide shoulders to extend beyond the frame."""
     width, height = frame_size
@@ -444,22 +465,24 @@ def fit_portrait(
         face_x, face_y, face_w, face_h = face
         center_x = face_x + face_w / 2 - subject_box[0]
         center_y = face_y + face_h / 2 - subject_box[1]
-        target_y = height * 0.44
-        scale = min(height * 0.44 / max(1, face_h), width * 0.62 / max(1, face_w))
+        target_y = height * face_position
+        scale = min(height * face_fraction / max(1, face_h), width * 0.66 / max(1, face_w))
         # Keep the top of the visible hair inside the frame with some headroom.
         if center_y > 0:
-            scale = min(scale, (target_y - height * 0.045) / center_y)
+            scale = min(scale, (target_y - height * 0.07) / center_y)
+        scale *= zoom
         offset = (round(width / 2 - center_x * scale), round(target_y - center_y * scale))
     else:
         # For profiles or undetected faces, center the upper subject rather than
         # an asymmetric body bounding box, and retain a little space above the head.
-        scale = min(width * 1.10 / portrait.width, height * 0.95 / portrait.height)
+        scale = max(width * 0.98 / portrait.width, height * 1.30 / portrait.height) * zoom
         head_alpha = portrait.getchannel("A").crop((0, 0, portrait.width, max(1, round(portrait.height * 0.4))))
         columns = head_alpha.resize((portrait.width, 1), Image.Resampling.BOX)
         weights = list(columns.getdata())
         total = sum(weights)
         center_x = sum((x + 0.5) * weight for x, weight in enumerate(weights)) / total if total else portrait.width / 2
-        offset = (round(width / 2 - center_x * scale), round(height - portrait.height * scale))
+        offset = (round(width / 2 - center_x * scale), round(height * 0.07))
+    offset = (offset[0] + round(width * shift_x), offset[1] + round(height * shift_y))
     portrait = portrait.resize(
         (max(1, round(portrait.width * scale)), max(1, round(portrait.height * scale))),
         Image.Resampling.LANCZOS,
@@ -475,6 +498,9 @@ def place_portrait(
     gradient_name: str,
     shape: str = "rectangle",
     background: str = "template",
+    zoom: float = 1.0,
+    shift_x: float = 0.0,
+    shift_y: float = 0.0,
 ) -> None:
     x1, y1, x2, y2 = box
     width, height = x2 - x1, y2 - y1
@@ -482,7 +508,11 @@ def place_portrait(
         portrait = ImageOps.exif_transpose(source).convert("RGBA")
     face = detect_face_box(portrait)
     portrait = remove_portrait_background(portrait)
-    portrait, offset = fit_portrait(portrait, (width, height), face)
+    portrait, offset = fit_portrait(
+        portrait, (width, height), face, zoom, shift_x, shift_y,
+        face_fraction=0.48 if shape == "circle" else 0.44,
+        face_position=0.46 if shape == "circle" else 0.44,
+    )
 
     fitted = (
         canvas.crop((x1, y1, x2, y2)).convert("RGBA")
@@ -511,6 +541,8 @@ def automatic_output(directory: Path, name: str, runs: int) -> Path:
 
 def main() -> int:
     args = parse_args()
+    if not 0.7 <= args.portrait_zoom <= 1.8 or not -0.3 <= args.portrait_x <= 0.3 or not -0.3 <= args.portrait_y <= 0.3:
+        raise ValueError("Portrait zoom must be 0.7–1.8; position offsets must be -0.3–0.3")
     if not args.image.is_file():
         raise ValueError(f"RM image does not exist: {args.image}")
     rm_name = args.rm_name.strip()
@@ -534,6 +566,9 @@ def main() -> int:
         gradient_name,
         layout.get("photo_shape", "rectangle"),
         layout.get("photo_background", "template"),
+        args.portrait_zoom,
+        args.portrait_x,
+        args.portrait_y,
     )
 
     supplied = {
