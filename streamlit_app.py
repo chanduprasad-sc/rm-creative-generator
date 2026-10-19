@@ -68,9 +68,11 @@ def clean_value(value: Any) -> str | None:
     return cleaned or None
 
 
-def token_rates(model: str) -> tuple[float, float] | None:
+def token_rates(model: str, input_tokens: int = 0) -> tuple[float, float] | None:
     """Return standard Claude API input/output USD rates per million tokens."""
     normalized = model.lower()
+    if "haiku-5-5" in normalized:
+        return (0.10, 0.50) if input_tokens <= 100_000 else (0.50, 2.50)
     if "sonnet-5" in normalized:
         return 2.0, 10.0
     if "sonnet" in normalized:
@@ -78,6 +80,15 @@ def token_rates(model: str) -> tuple[float, float] | None:
     if "haiku-4-5" in normalized:
         return 1.0, 5.0
     return None
+
+
+def estimate_run_cost(model: str, input_tokens: int, output_tokens: int, usd_to_inr: float) -> dict[str, float] | None:
+    """Estimate this generation's API cost from the tokens returned by Claude."""
+    rates = token_rates(model, input_tokens)
+    if rates is None:
+        return None
+    usd = (input_tokens * rates[0] + output_tokens * rates[1]) / 1_000_000
+    return {"usd": usd, "inr": usd * usd_to_inr}
 
 
 def extract_with_claude(details_text: str) -> tuple[dict[str, Any], dict[str, int]]:
@@ -275,6 +286,31 @@ if submitted:
 result = st.session_state.get("result")
 if result:
     st.success(f"Creative ready — runs slab: {result.get('slab') or 'selected'}")
+    input_tokens = result["usage"]["input_tokens"]
+    output_tokens = result["usage"]["output_tokens"]
+    model = result.get("model", "")
+    token_columns = st.columns(3)
+    token_columns[0].metric("Input tokens", f"{input_tokens:,}")
+    token_columns[1].metric("Output tokens", f"{output_tokens:,}")
+    token_columns[2].metric("Total tokens", f"{input_tokens + output_tokens:,}")
+    try:
+        usd_to_inr = float(secret("USD_TO_INR", "95.00"))
+        if not 0 < usd_to_inr < float("inf"):
+            raise ValueError("Invalid exchange rate")
+    except ValueError:
+        usd_to_inr = 95.00
+        st.warning("USD_TO_INR must be a positive number. Using ₹95.00 per USD for this estimate.")
+    cost = estimate_run_cost(model, input_tokens, output_tokens, usd_to_inr)
+    if cost is not None:
+        cost_columns = st.columns(2)
+        cost_columns[0].metric("Estimated API cost · USD", f"${cost['usd']:.6f}")
+        cost_columns[1].metric("Estimated API cost · INR", f"₹{cost['inr']:.4f}")
+        st.caption(
+            f"This generation · {model} · Conversion: $1 = ₹{usd_to_inr:.2f} (configured estimate, not a live rate). "
+            "API cost only; excludes taxes, card conversion fees and hosting."
+        )
+    else:
+        st.info(f"Token usage is shown, but pricing has not been configured for {model}.")
     st.image(result["image"], use_container_width=True)
     safe_name = re.sub(r"[^a-z0-9]+", "-", result["details"]["rm_name"].lower()).strip("-") or "rm"
     st.download_button(
@@ -289,13 +325,7 @@ if result:
         st.info("These supplied fields do not have a place in this template: " + ", ".join(result["unsupported_fields"]))
     with st.expander("Detected details and Claude usage"):
         st.json(result["details"])
-        input_tokens = result["usage"]["input_tokens"]
-        output_tokens = result["usage"]["output_tokens"]
-        model = result.get("model", "")
-        st.write(f"Input tokens: {input_tokens:,}")
-        st.write(f"Output tokens: {output_tokens:,}")
         st.write(f"Model: `{model}`")
-        rates = token_rates(model)
+        rates = token_rates(model, input_tokens)
         if rates:
-            estimated_cost = (input_tokens * rates[0] + output_tokens * rates[1]) / 1_000_000
-            st.write(f"Estimated Claude cost: ${estimated_cost:.6f}")
+            st.caption(f"Rates per million tokens: ${rates[0]:g} input · ${rates[1]:g} output.")
