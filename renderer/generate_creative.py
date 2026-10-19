@@ -334,6 +334,7 @@ def draw_metadata(draw: ImageDraw.ImageDraw, supplied: dict[str, str], spec: dic
         "sh": "SH",
         "rh": "RH",
         "branch": "Branch",
+        "reward_points": "Reward Points",
         "ftd_runs": "FTD Runs",
         "ftd_subscription": "FTD Subscription",
     }
@@ -362,6 +363,16 @@ def draw_metadata(draw: ImageDraw.ImageDraw, supplied: dict[str, str], spec: dic
             "anchor": "lm",
             "stroke": 0,
         }
+        if "reward_points" in row:
+            # Keep the optional reward line prominent while fitting all team rows.
+            line_spec["color"] = "#241044"
+            line_spec["font"] = "bold"
+            padding = max(4, round(font_size * 0.23))
+            draw.rounded_rectangle(
+                (x - padding, y - round(font_size * 0.56), x + int(spec["max_width"]) + padding, y + round(font_size * 0.56)),
+                radius=padding,
+                fill="#F5C92F",
+            )
         draw_fitted(draw, text, line_spec)
         rendered.extend(row)
         y += line_height
@@ -593,7 +604,7 @@ def main() -> int:
     unsupported: list[str] = [key for key in ("ftd_runs", "ftd_subscription") if supplied.get(key)]
     for key in ("total_runs", "total_fees", "reward_points"):
         value = supplied.get(key)
-        if not value:
+        if not value or key in rendered:
             continue
         spec = layout["values"].get(key)
         if spec is None:

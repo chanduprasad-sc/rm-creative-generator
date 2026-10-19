@@ -9,7 +9,7 @@
     "photo_background": "template",
     "clear_boxes": [[650, 872, 1280, 1145]],
     "name": {"xy": [692, 890], "max_width": 610, "font_size": 60, "font": "display", "color": "#F5C92F", "anchor": "lm", "stroke": 0, "shadow": [2, 6], "shadow_color": "#241040", "max_lines": 2},
-    "metadata": {"start": [692, 980], "bottom": 1168, "max_width": 610, "font_size": 32, "line_height": 50, "color": "#FFFFFF", "font": "bold", "uppercase": true, "order": ["bm", "ch", "sh", "rh", "zh", "branch"]},
+    "metadata": {"start": [692, 980], "bottom": 1168, "max_width": 610, "font_size": 32, "line_height": 50, "color": "#FFFFFF", "font": "bold", "uppercase": true, "order": ["bm", "ch", "sh", "rh", "zh", "branch", "reward_points"]},
     "optional_metric_clear": {"total_fees": [[900, 1440, 1195, 1505]]},
     "values": {
       "total_runs": {"xy": [410, 1383], "max_width": 480, "font_size": 88, "font": "display", "color": "#F5C92F", "stroke": 0},
